@@ -14,7 +14,16 @@
 #define TODO_VERSION "0.0.1"
 #define ctrl_key(k) ((k) & 0x1f)
 
+enum keys {
+    ARROW_LEFT = 1000,
+    ARROW_RIGHT,
+    ARROW_UP,
+    ARROW_DOWN
+};
+
 struct Config {
+    int cx, cy;
+    int rowoff;
     int screenrows;
     int screencols;
     int numtodos;
@@ -28,7 +37,7 @@ void clear_screen() {
     write(STDOUT_FILENO, "\x1b[H", 3);
 }
 
-char readKey() {
+int read_key() {
     int nread;
     char c;
 
@@ -37,23 +46,85 @@ char readKey() {
             die("read");
     }
 
-    return c;
+    if (c == '\x1b') {
+        char seq[3];
+
+        if (read(STDIN_FILENO, &seq[0], 1) != 1) return '\x1b';
+        if (read(STDIN_FILENO, &seq[1], 1) != 1) return '\x1b';
+
+        if (seq[0] == '[') {
+            switch (seq[1]) {
+                case 'A': return ARROW_UP;
+                case 'B': return ARROW_DOWN;
+                case 'C': return ARROW_RIGHT;
+                case 'D': return ARROW_LEFT;
+            }
+        }
+
+        return '\x1b';
+    } else {
+        return c;
+    }
 }
 
-void processKeys() {
-    char c = readKey();
+void move_cursor(int key) {
+    switch (key) {
+        case ARROW_LEFT:
+            if (state.cx != 0) {
+                state.cx--;
+            }
+            break;
+        case ARROW_RIGHT:
+            if (state.cx != state.screencols - 1) {
+                state.cx++;
+            }
+            break;
+        case ARROW_UP:
+            if (state.cy != 0) {
+                state.cy--;
+            }
+            break;
+        case ARROW_DOWN:
+            if (state.cy < state.numtodos) {
+                state.cy++;
+            }
+            break;
+    }
+}
+
+void process_keys() {
+    int c = read_key();
 
     switch (c) {
         case ctrl_key('q'):
             clear_screen();
             exit(0);
             break;
+
+        case ARROW_DOWN:
+        case ARROW_LEFT:
+        case ARROW_RIGHT:
+        case ARROW_UP:
+            move_cursor(c);
+            break;
+    }
+}
+
+void scrolling() {
+    if (state.cy < state.rowoff) {
+        state.rowoff = state.cy;
+    }
+
+    if (state.cy >= state.rowoff + state.screenrows) {
+        state.rowoff = state.cy - state.screenrows + 1;
     }
 }
 
 void render(struct buffer *content) {
     for (int i = 0; i < state.screenrows; i++) {
-        if (i >= state.numtodos) {
+        int filerow = i + state.rowoff;
+
+        if (filerow >= state.numtodos) {
             if (state.numtodos == 0 && i == 0) {
                 char welcome[80];
                 int welcome_length = snprintf(welcome, sizeof(welcome),
@@ -76,12 +147,12 @@ void render(struct buffer *content) {
                 buffer_append(content, "~", 1);
             }
         } else {
-            int length = state.todo[i].size;
+            int length = state.todo[filerow].size;
 
             if (length > state.screencols)
                 length = state.screencols;
 
-            buffer_append(content, state.todo[i].string, length);
+            buffer_append(content, state.todo[filerow].string, length);
         }
 
         buffer_append(content, "\x1b[K", 3);
@@ -92,6 +163,8 @@ void render(struct buffer *content) {
 }
 
 void refreshScreen() {
+    scrolling();
+
     struct buffer content = BUFFER_INIT;
 
     buffer_append(&content, "\x1b[?25l", 6);
@@ -99,7 +172,13 @@ void refreshScreen() {
 
     render(&content);
 
-    buffer_append(&content, "\x1b[H", 3);
+    char buffer[32];
+    int y = (state.cy - state.rowoff) + 1;
+    int x = state.cx + 1;
+
+    snprintf(buffer, sizeof(buffer), "\x1b[%d;%dH", y, x);
+    buffer_append(&content, buffer, strlen(buffer));
+
     buffer_append(&content, "\x1b[?25h", 6);
 
     write(STDOUT_FILENO, content.string, content.length);
@@ -140,8 +219,11 @@ void when_open(char *filename) {
 }
 
 void init() {
+    state.cx = 0;
+    state.cy = 0;
     state.numtodos = 0;
     state.todo = NULL;
+    state.rowoff = 0;
 
     if (getWindowSize(&state.screenrows, &state.screencols) == -1) {
         die("getWindowSize");
@@ -159,7 +241,7 @@ int main(int argc, char *argv[]) {
 
     while (1) {
         refreshScreen();
-        processKeys();
+        process_keys();
     }
 
     return 0;
