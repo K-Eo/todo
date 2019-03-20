@@ -21,12 +21,18 @@ enum keys {
     ARROW_DOWN
 };
 
+enum modes {
+    M_NORMAL,
+    M_INSERT
+};
+
 struct Config {
     int cx, cy;
     int rowoff;
     int screenrows;
     int screencols;
     int numtodos;
+    int mode;
     Todo *todo;
 };
 
@@ -35,6 +41,7 @@ struct Config state;
 void clear_screen() {
     write(STDOUT_FILENO, "\x1b[2J", 4);
     write(STDOUT_FILENO, "\x1b[H", 3);
+    write(STDOUT_FILENO, "\x1b[?25h", 6);
 }
 
 int read_key() {
@@ -70,12 +77,12 @@ int read_key() {
 void move_cursor(int key) {
     switch (key) {
         case ARROW_LEFT:
-            if (state.cx != 0) {
+            if (state.cx != 0 && state.mode == M_INSERT) {
                 state.cx--;
             }
             break;
         case ARROW_RIGHT:
-            if (state.cx != state.screencols - 1) {
+            if (state.cx != state.screencols - 1 && state.mode == M_INSERT) {
                 state.cx++;
             }
             break;
@@ -85,7 +92,7 @@ void move_cursor(int key) {
             }
             break;
         case ARROW_DOWN:
-            if (state.cy < state.numtodos) {
+            if (state.cy < state.numtodos - 1) {
                 state.cy++;
             }
             break;
@@ -162,7 +169,7 @@ void render(struct buffer *content) {
     }
 }
 
-void refreshScreen() {
+void refresh_screen() {
     scrolling();
 
     struct buffer content = BUFFER_INIT;
@@ -179,7 +186,9 @@ void refreshScreen() {
     snprintf(buffer, sizeof(buffer), "\x1b[%d;%dH", y, x);
     buffer_append(&content, buffer, strlen(buffer));
 
+    if (state.mode == M_INSERT) {
     buffer_append(&content, "\x1b[?25h", 6);
+    }
 
     write(STDOUT_FILENO, content.string, content.length);
     buffer_free(&content);
@@ -219,11 +228,12 @@ void when_open(char *filename) {
 }
 
 void init() {
-    state.cx = 0;
+    state.cx = 3;
     state.cy = 0;
     state.numtodos = 0;
     state.todo = NULL;
     state.rowoff = 0;
+    state.mode = M_NORMAL;
 
     if (getWindowSize(&state.screenrows, &state.screencols) == -1) {
         die("getWindowSize");
@@ -240,7 +250,7 @@ int main(int argc, char *argv[]) {
     }
 
     while (1) {
-        refreshScreen();
+        refresh_screen();
         process_keys();
     }
 
