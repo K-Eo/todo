@@ -18,7 +18,7 @@ struct Config {
     int screenrows;
     int screencols;
     int numtodos;
-    Todo todo;
+    Todo *todo;
 };
 
 struct Config state;
@@ -76,12 +76,12 @@ void render(struct buffer *content) {
                 buffer_append(content, "~", 1);
             }
         } else {
-            int length = state.todo.size;
+            int length = state.todo[i].size;
 
             if (length > state.screencols)
                 length = state.screencols;
 
-            buffer_append(content, state.todo.string, length);
+            buffer_append(content, state.todo[i].string, length);
         }
 
         buffer_append(content, "\x1b[K", 3);
@@ -106,6 +106,17 @@ void refreshScreen() {
     buffer_free(&content);
 }
 
+void push_todo(char *string, size_t length) {
+    state.todo = realloc(state.todo, sizeof(Todo) * (state.numtodos + 1));
+
+    int at = state.numtodos;
+    state.todo[at].size = length;
+    state.todo[at].string = malloc(length + 1);
+    memcpy(state.todo[at].string, string, length);
+    state.todo[at].string[length] = '\0';
+    state.numtodos++;
+}
+
 void when_open(char *filename) {
     FILE *file = fopen(filename, "r");
     if (!file) die("fopen");
@@ -114,19 +125,13 @@ void when_open(char *filename) {
     size_t lines_captured = 0;
     ssize_t line_length;
 
-    line_length = getline(&line, &lines_captured, file);
-
-    if (line_length != -1) {
+    while((line_length = getline(&line, &lines_captured, file)) != -1) {
         while (line_length > 0 &&
             (line[line_length - 1] == '\n' || line[line_length - 1] == '\r')) {
                 line_length--;
             }
 
-        state.todo.size = line_length;
-        state.todo.string = malloc(line_length + 1);
-        memcpy(state.todo.string, line, line_length);
-        state.todo.string[line_length] = '\0';
-        state.numtodos = 1;
+        push_todo(line, line_length);
     }
 
     free(line);
@@ -136,6 +141,7 @@ void when_open(char *filename) {
 
 void init() {
     state.numtodos = 0;
+    state.todo = NULL;
 
     if (getWindowSize(&state.screenrows, &state.screencols) == -1) {
         die("getWindowSize");
