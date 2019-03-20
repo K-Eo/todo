@@ -4,6 +4,7 @@
 
 #include "terminal.h"
 #include "dirty.h"
+#include "buffer.h"
 
 #define ctrl_key(k) ((k) & 0x1f)
 
@@ -42,23 +43,30 @@ void processKeys() {
     }
 }
 
-void render() {
+void render(struct buffer *content) {
     for (int i = 0; i < state.screenrows; i++) {
-        write(STDOUT_FILENO, "~", 3);
+        buffer_append(content, "~", 1);
 
+        buffer_append(content, "\x1b[K", 3);
         if (i < state.screenrows - 1) {
-            write(STDOUT_FILENO, "\r\n", 2);
+            buffer_append(content, "\r\n", 2);
         }
     }
 }
 
 void refreshScreen() {
-    write(STDOUT_FILENO, "\x1b[2J", 4);
-    write(STDOUT_FILENO, "\x1b[H", 3);
+    struct buffer content = BUFFER_INIT;
 
-    render();
+    buffer_append(&content, "\x1b[?25l", 6);
+    buffer_append(&content, "\x1b[H", 3);
 
-    write(STDOUT_FILENO, "\x1b[H", 3);
+    render(&content);
+
+    buffer_append(&content, "\x1b[H", 3);
+    buffer_append(&content, "\x1b[?25h", 6);
+
+    write(STDOUT_FILENO, content.string, content.length);
+    buffer_free(&content);
 }
 
 void init() {
