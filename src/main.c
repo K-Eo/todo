@@ -6,6 +6,7 @@
 #include "dirty.h"
 #include "buffer.h"
 
+#define TODO_VERSION "0.0.1"
 #define ctrl_key(k) ((k) & 0x1f)
 
 struct Config {
@@ -45,7 +46,27 @@ void processKeys() {
 
 void render(struct buffer *content) {
     for (int i = 0; i < state.screenrows; i++) {
-        buffer_append(content, "~", 1);
+        if (i == 0) {
+            char welcome[80];
+            int welcome_length = snprintf(welcome, sizeof(welcome),
+                "Todo App -- version %s", TODO_VERSION);
+
+            if (welcome_length > state.screencols)
+                welcome_length = state.screencols;
+
+            int padding = (state.screencols - welcome_length) / 2;
+
+            if (padding) {
+                buffer_append(content, "~", 1);
+                padding--;
+            }
+
+            while (padding--) buffer_append(content, " ", 1);
+
+            buffer_append(content, welcome, welcome_length);
+        } else {
+            buffer_append(content, "~", 1);
+        }
 
         buffer_append(content, "\x1b[K", 3);
         if (i < state.screenrows - 1) {
