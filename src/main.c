@@ -35,7 +35,7 @@ enum modes {
     M_INSERT
 };
 
-struct Config {
+struct config_state {
     int cx, cy;
     int rowoff;
     int screenrows;
@@ -47,7 +47,7 @@ struct Config {
     todo *todos;
 };
 
-struct Config state;
+struct config_state state;
 
 void clear_screen() {
     write(STDOUT_FILENO, "\x1b[2J", 4);
