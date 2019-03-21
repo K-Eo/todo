@@ -35,12 +35,17 @@ enum modes {
     M_INSERT
 };
 
+struct cursor_state {
+    int x;
+    int y;
+};
+
 struct config_state {
-    int cx, cy;
+    struct cursor_state cursor;
     int row_offset;
-    int screenrows;
-    int screencols;
-    int numtodos;
+    int screen_rows;
+    int screen_cols;
+    int todos_count;
     int mode;
     char status_message[80];
     time_t status_message_time;
@@ -108,27 +113,27 @@ int read_key() {
 }
 
 void move_cursor(int key) {
-    todo *current = (state.cy >= state.numtodos) ? NULL : &state.todos[state.cy];
+    todo *current = (state.cursor.y >= state.todos_count) ? NULL : &state.todos[state.cursor.y];
 
     switch (key) {
         case ARROW_LEFT:
-            if (state.cx > TODO_OFFSET && state.mode == M_INSERT) {
-                state.cx--;
+            if (state.cursor.x > TODO_OFFSET && state.mode == M_INSERT) {
+                state.cursor.x--;
             }
             break;
         case ARROW_RIGHT:
-            if (current && state.mode == M_INSERT && state.cx < current->size + TODO_OFFSET) {
-                state.cx++;
+            if (current && state.mode == M_INSERT && state.cursor.x < current->size + TODO_OFFSET) {
+                state.cursor.x++;
             }
             break;
         case ARROW_UP:
-            if (state.cy != 0 && state.mode == M_NORMAL) {
-                state.cy--;
+            if (state.cursor.y != 0 && state.mode == M_NORMAL) {
+                state.cursor.y--;
             }
             break;
         case ARROW_DOWN:
-            if (state.cy < state.numtodos - 1 && state.mode == M_NORMAL) {
-                state.cy++;
+            if (state.cursor.y < state.todos_count - 1 && state.mode == M_NORMAL) {
+                state.cursor.y++;
             }
             break;
     }
@@ -149,13 +154,13 @@ void todo_del_char(todo *src, int at) {
 }
 
 void del_char() {
-    if (state.cy == state.numtodos) return;
+    if (state.cursor.y == state.todos_count) return;
 
-    todo *current = &state.todos[state.cy];
+    todo *current = &state.todos[state.cursor.y];
 
-    if (state.cx > TODO_OFFSET) {
-        todo_del_char(current, state.cx - TODO_OFFSET - 1);
-        state.cx--;
+    if (state.cursor.x > TODO_OFFSET) {
+        todo_del_char(current, state.cursor.x - TODO_OFFSET - 1);
+        state.cursor.x--;
     }
 }
 
@@ -168,26 +173,26 @@ void todo_insert_char(todo *dest, int at, int c) {
 }
 
 void insert_char(int c) {
-    todo_insert_char(&state.todos[state.cy], state.cx - TODO_OFFSET, c);
-    state.cx++;
+    todo_insert_char(&state.todos[state.cursor.y], state.cursor.x - TODO_OFFSET, c);
+    state.cursor.x++;
 }
 
 void push_todo(int at, char *string, size_t length) {
-    if (at < 0 || at > state.numtodos) return;
+    if (at < 0 || at > state.todos_count) return;
 
-    state.todos = realloc(state.todos, sizeof(todo) * (state.numtodos + 1));
-    memmove(&state.todos[at + 1], &state.todos[at], sizeof(todo) * (state.numtodos - at));
+    state.todos = realloc(state.todos, sizeof(todo) * (state.todos_count + 1));
+    memmove(&state.todos[at + 1], &state.todos[at], sizeof(todo) * (state.todos_count - at));
 
     state.todos[at].done = 0;
     state.todos[at].size = length;
     state.todos[at].string = malloc(length + 1);
     memcpy(state.todos[at].string, string, length);
     state.todos[at].string[length] = '\0';
-    state.numtodos++;
+    state.todos_count++;
 }
 
 void toggle_todo() {
-    int *done = &state.todos[state.cy].done;
+    int *done = &state.todos[state.cursor.y].done;
     *done = *done == 0 ? 1 : 0;
 }
 
@@ -196,17 +201,17 @@ void free_todo(todo *src) {
 }
 
 void create_todo() {
-    push_todo(state.cy + 1, "", 0);
-    state.cy++;
-    state.cx = TODO_OFFSET;
+    push_todo(state.cursor.y + 1, "", 0);
+    state.cursor.y++;
+    state.cursor.x = TODO_OFFSET;
 }
 
 void remove_todo(int at) {
-    if (at < 0 || at >= state.numtodos) return;
+    if (at < 0 || at >= state.todos_count) return;
     free_todo(&state.todos[at]);
     memmove(&state.todos[at], &state.todos[at + 1],
-        sizeof(todo) * (state.numtodos - at - 1));
-    state.numtodos--;
+        sizeof(todo) * (state.todos_count - at - 1));
+    state.todos_count--;
 }
 
 void normal_keys(int c) {
@@ -226,21 +231,21 @@ void normal_keys(int c) {
             break;
 
         case HOME_KEY:
-            state.cy = 0;
+            state.cursor.y = 0;
             break;
         case END_KEY:
-            state.cy = state.numtodos - 1;
+            state.cursor.y = state.todos_count - 1;
             break;
 
         case DEL_KEY:
         case BACKSPACE:
-            remove_todo(state.cy);
+            remove_todo(state.cursor.y);
             break;
 
         case PAGE_DOWN:
         case PAGE_UP:
             {
-                int times = state.screenrows / 2;
+                int times = state.screen_rows / 2;
                 while (times--)
                     move_cursor(c == PAGE_UP ? ARROW_UP : ARROW_DOWN);
             }
@@ -268,11 +273,11 @@ void insert_keys(int c) {
             break;
 
         case HOME_KEY:
-            state.cx = TODO_OFFSET;
+            state.cursor.x = TODO_OFFSET;
             break;
         case END_KEY:
-            if (state.cy < state.numtodos) {
-                state.cx = state.todos[state.cy].size + TODO_OFFSET;
+            if (state.cursor.y < state.todos_count) {
+                state.cursor.x = state.todos[state.cursor.y].size + TODO_OFFSET;
             }
             break;
 
@@ -305,26 +310,26 @@ void process_keys() {
 }
 
 void scrolling() {
-    if (state.cy < state.row_offset) {
-        state.row_offset = state.cy;
+    if (state.cursor.y < state.row_offset) {
+        state.row_offset = state.cursor.y;
     }
 
-    if (state.cy >= state.row_offset + state.screenrows) {
-        state.row_offset = state.cy - state.screenrows + 1;
+    if (state.cursor.y >= state.row_offset + state.screen_rows) {
+        state.row_offset = state.cursor.y - state.screen_rows + 1;
     }
 }
 
 void render_todo(struct buffer *content, struct todo src, int index) {
     buffer_append(content, "  ", 2);
 
-    char pointer = index == state.cy ? '>' : ' ';
+    char pointer = index == state.cursor.y ? '>' : ' ';
     buffer_append(content, &pointer, 1);
     buffer_append(content, " - ", 3);
 
     int length = src.size;
 
-    if (length + TODO_OFFSET > state.screencols)
-        length = state.screencols;
+    if (length + TODO_OFFSET > state.screen_cols)
+        length = state.screen_cols;
 
     char *c = &src.string[0];
 
@@ -343,19 +348,19 @@ void render_todo(struct buffer *content, struct todo src, int index) {
 }
 
 void render(struct buffer *content) {
-    for (int i = 0; i < state.screenrows; i++) {
+    for (int i = 0; i < state.screen_rows; i++) {
         int filerow = i + state.row_offset;
 
-        if (filerow >= state.numtodos) {
-            if (state.numtodos == 0 && i == 0) {
+        if (filerow >= state.todos_count) {
+            if (state.todos_count == 0 && i == 0) {
                 char welcome[80];
                 int welcome_length = snprintf(welcome, sizeof(welcome),
                     "Todo App -- version %s", TODO_VERSION);
 
-                if (welcome_length > state.screencols)
-                    welcome_length = state.screencols;
+                if (welcome_length > state.screen_cols)
+                    welcome_length = state.screen_cols;
 
-                int padding = (state.screencols - welcome_length) / 2;
+                int padding = (state.screen_cols - welcome_length) / 2;
 
                 if (padding) {
                     buffer_append(content, "~", 1);
@@ -380,7 +385,7 @@ void render(struct buffer *content) {
 void get_stats(int *done, int *todo) {
     int i;
 
-    for (i = 0; i < state.numtodos; i++) {
+    for (i = 0; i < state.todos_count; i++) {
         if (state.todos[i].done) {
             (*done)++;
         } else {
@@ -407,13 +412,13 @@ void render_status_bar(struct buffer *dest) {
 
     char status[80];
     int length = snprintf(status, sizeof(status), "%d %d %d",
-        todo, done, state.numtodos);
+        todo, done, state.todos_count);
 
-    if (length > state.screencols) length = state.screencols;
+    if (length > state.screen_cols) length = state.screen_cols;
 
     buffer_append(dest, status, length);
 
-    while (length < state.screencols) {
+    while (length < state.screen_cols) {
         buffer_append(dest, " ", 1);
         length++;
     }
@@ -427,8 +432,8 @@ void render_status_message(struct buffer *dest) {
 
     int message_length = strlen(state.status_message);
 
-    if (message_length > state.screencols)
-        message_length = state.screencols;
+    if (message_length > state.screen_cols)
+        message_length = state.screen_cols;
 
     if (message_length && time(NULL) - state.status_message_time < 5)
         buffer_append(dest, state.status_message, message_length);
@@ -447,8 +452,8 @@ void refresh_screen() {
     render_status_message(&content);
 
     char buffer[32];
-    int y = (state.cy - state.row_offset) + 1;
-    int x = state.cx + 1;
+    int y = (state.cursor.y - state.row_offset) + 1;
+    int x = state.cursor.x + 1;
 
     snprintf(buffer, sizeof(buffer), "\x1b[%d;%dH", y, x);
     buffer_append(&content, buffer, strlen(buffer));
@@ -475,7 +480,7 @@ void when_open(char *filename) {
                 line_length--;
             }
 
-        push_todo(state.numtodos, line, line_length);
+        push_todo(state.todos_count, line, line_length);
     }
 
     free(line);
@@ -484,20 +489,20 @@ void when_open(char *filename) {
 }
 
 void init() {
-    state.cx = 3;
-    state.cy = 0;
-    state.numtodos = 0;
+    state.cursor.x = 3;
+    state.cursor.y = 0;
+    state.todos_count = 0;
     state.todos = NULL;
     state.row_offset = 0;
     state.mode = M_NORMAL;
     state.status_message[0] = '\0';
     state.status_message_time = 0;
 
-    if (getWindowSize(&state.screenrows, &state.screencols) == -1) {
+    if (getWindowSize(&state.screen_rows, &state.screen_cols) == -1) {
         die("getWindowSize");
     }
 
-    state.screenrows -= 2;
+    state.screen_rows -= 2;
 }
 
 int main(int argc, char *argv[]) {
