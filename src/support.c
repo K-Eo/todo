@@ -1,4 +1,4 @@
-#include "dirty.h"
+#include "support.h"
 
 die_callback on_die_callback;
 

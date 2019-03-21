@@ -9,7 +9,7 @@
 #include <time.h>
 
 #include "terminal.h"
-#include "dirty.h"
+#include "support.h"
 #include "buffer.h"
 #include "todo.h"
 

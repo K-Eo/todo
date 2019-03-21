@@ -1,5 +1,5 @@
 #include "terminal.h"
-#include "dirty.h"
+#include "support.h"
 
 struct termios original_termios;
 
