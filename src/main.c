@@ -17,6 +17,7 @@
 #define ctrl_key(k) ((k) & 0x1f)
 
 enum keys {
+    BACKSPACE = 127,
     ARROW_LEFT = 1000,
     ARROW_RIGHT,
     ARROW_UP,
@@ -135,6 +136,18 @@ void toggle_todo() {
     *done = *done == 0 ? 1 : 0;
 }
 
+void free_todo(Todo *todo) {
+    free(todo->string);
+}
+
+void remove_todo(int at) {
+    if (at < 0 || at >= state.numtodos) return;
+    free_todo(&state.todo[at]);
+    memmove(&state.todo[at], &state.todo[at + 1],
+        sizeof(Todo) * (state.numtodos - at - 1));
+    state.numtodos--;
+}
+
 void process_keys() {
     int c = read_key();
 
@@ -155,6 +168,13 @@ void process_keys() {
             break;
         case END_KEY:
             state.cy = state.numtodos - 1;
+            break;
+
+        case DEL_KEY:
+        case BACKSPACE:
+            if (state.mode == M_NORMAL) {
+                remove_todo(state.cy);
+            }
             break;
 
         case PAGE_DOWN:
