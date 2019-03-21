@@ -185,7 +185,7 @@ void scrolling() {
     }
 }
 
-void renderTodo(struct buffer *content, struct Todo todo, int index) {
+void render_todo(struct buffer *content, struct Todo todo, int index) {
     buffer_append(content, "  ", 2);
 
     char pointer = index == state.cy ? '>' : ' ';
@@ -240,7 +240,7 @@ void render(struct buffer *content) {
                 buffer_append(content, "~", 1);
             }
         } else {
-            renderTodo(content, state.todo[filerow], filerow);
+            render_todo(content, state.todo[filerow], filerow);
         }
 
         buffer_append(content, "\x1b[K", 3);
