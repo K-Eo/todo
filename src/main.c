@@ -354,7 +354,9 @@ void scrolling() {
 void render_todo(struct buffer *content, struct todo src, int index) {
     buffer_append(content, "  ", 2);
 
-    char pointer = index == state.cursor.y ? '>' : ' ';
+    char pointer = index != state.cursor.y ? ' ' :
+                    state.work_mode == WM_NORMAL ? '>' : '*';
+
     buffer_append(content, &pointer, 1);
     buffer_append(content, " - ", 3);
 
