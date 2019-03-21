@@ -466,7 +466,7 @@ void render_todo(struct buffer *content, struct todo src, int index) {
 
     int i;
     for (i = 0; i < length; i++) {
-        if (isalpha(c[i]) && src.done) {
+        if (isprint(c[i]) && src.done) {
             buffer_append(content, "\x1b[9m", 5);
             buffer_append(content, "\x1b[35m", 5);
             buffer_append(content, &c[i], 1);
