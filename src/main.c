@@ -239,6 +239,7 @@ void normal_keys(int c) {
 
         case DEL_KEY:
         case BACKSPACE:
+            if (c == BACKSPACE) move_cursor(ARROW_UP);
             remove_todo(state.cursor.y);
             break;
 
