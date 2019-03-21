@@ -27,12 +27,18 @@ enum keys {
     HOME_KEY,
     END_KEY,
     PAGE_UP,
-    PAGE_DOWN
+    PAGE_DOWN,
+    ALT_ENTER
 };
 
 enum work_modes {
     WM_NORMAL,
     WM_INSERT
+};
+
+enum insertion_modes {
+    IM_AFTER,
+    IM_BEFORE
 };
 
 struct cursor_state {
@@ -47,6 +53,7 @@ struct config_state {
     int screen_cols;
     int todos_count;
     int work_mode;
+    int insertion_mode;
     char status_message[80];
     time_t status_message_time;
     todo *todos;
@@ -73,6 +80,11 @@ int read_key() {
         char seq[3];
 
         if (read(STDIN_FILENO, &seq[0], 1) != 1) return '\x1b';
+
+        if (seq[0] == '\r') {
+            return ALT_ENTER;
+        }
+
         if (read(STDIN_FILENO, &seq[1], 1) != 1) return '\x1b';
 
         if (seq[0] == '[') {
@@ -201,7 +213,11 @@ void free_todo(todo *src) {
 }
 
 void create_todo() {
-    push_todo(state.cursor.y + 1, "", 0);
+    int at = state.insertion_mode == IM_AFTER ?
+        state.cursor.y + 1 : state.cursor.y;
+
+    push_todo(at, "", 0);
+
     state.cursor.y++;
     state.cursor.x = TODO_OFFSET;
 }
@@ -217,7 +233,15 @@ void remove_todo(int at) {
 void normal_keys(int c) {
     switch (c) {
         case '\r':
+            state.insertion_mode = IM_AFTER;
             create_todo();
+            begin_insert_mode();
+            break;
+
+        case ALT_ENTER:
+            state.insertion_mode = IM_BEFORE;
+            create_todo();
+            move_cursor(ARROW_UP);
             begin_insert_mode();
             break;
 
@@ -267,7 +291,9 @@ void insert_keys(int c) {
             end_insert_mode();
             if (state.todos[state.cursor.y].size == 0) {
                 remove_todo(state.cursor.y);
-                move_cursor(ARROW_UP);
+                if (state.insertion_mode == IM_AFTER) {
+                    move_cursor(ARROW_UP);
+                }
             }
             break;
         case PAGE_DOWN:
@@ -275,6 +301,7 @@ void insert_keys(int c) {
         case '\t':
         case '\x1b':
         case ctrl_key('l'):
+        case ALT_ENTER:
             break;
 
         case HOME_KEY:
@@ -502,6 +529,7 @@ void init() {
     state.work_mode = WM_NORMAL;
     state.status_message[0] = '\0';
     state.status_message_time = 0;
+    state.insertion_mode = IM_AFTER;
 
     if (get_window_size(&state.screen_rows, &state.screen_cols) == -1) {
         die("get_window_size");
