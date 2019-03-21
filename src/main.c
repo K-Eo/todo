@@ -182,7 +182,7 @@ void scrolling() {
 }
 
 void renderTodo(struct buffer *content, struct Todo todo, int index) {
-    buffer_append(content, "   ", 3);
+    buffer_append(content, "  ", 2);
 
     char pointer = index == state.cy ? '>' : ' ';
     buffer_append(content, &pointer, 1);
@@ -190,7 +190,7 @@ void renderTodo(struct buffer *content, struct Todo todo, int index) {
 
     int length = todo.size;
 
-    if (length + 7 > state.screencols)
+    if (length + 6 > state.screencols)
         length = state.screencols;
 
     char *c = &todo.string[0];
