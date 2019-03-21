@@ -113,28 +113,28 @@ int read_key() {
 }
 
 void move_cursor(int key) {
-    todo *current = (state.cursor.y >= state.todos_count) ? NULL : &state.todos[state.cursor.y];
+    todo *current = (state.cursor.y >= state.todos_count) ?
+                    NULL : &state.todos[state.cursor.y];
 
     switch (key) {
         case ARROW_LEFT:
-            if (state.cursor.x > TODO_OFFSET && state.work_mode == WM_INSERT) {
+            if (state.cursor.x > TODO_OFFSET &&
+                state.work_mode == WM_INSERT)
                 state.cursor.x--;
-            }
             break;
         case ARROW_RIGHT:
-            if (current && state.work_mode == WM_INSERT && state.cursor.x < current->size + TODO_OFFSET) {
+            if (current && state.work_mode == WM_INSERT &&
+                state.cursor.x < current->size + TODO_OFFSET)
                 state.cursor.x++;
-            }
             break;
         case ARROW_UP:
-            if (state.cursor.y != 0 && state.work_mode == WM_NORMAL) {
+            if (state.cursor.y != 0 && state.work_mode == WM_NORMAL)
                 state.cursor.y--;
-            }
             break;
         case ARROW_DOWN:
-            if (state.cursor.y < state.todos_count - 1 && state.work_mode == WM_NORMAL) {
+            if (state.cursor.y < state.todos_count - 1 &&
+                state.work_mode == WM_NORMAL)
                 state.cursor.y++;
-            }
             break;
     }
 }
