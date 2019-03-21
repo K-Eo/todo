@@ -534,8 +534,8 @@ void render_status_bar(struct buffer *dest) {
     get_stats(&done, &todo);
 
     char status[80];
-    int length = snprintf(status, sizeof(status), "%d %d %d",
-        todo, done, state.todos_count);
+    int length = snprintf(status, sizeof(status), "%2d - %2d/%2d/%2d",
+        state.cursor.y + 1, todo, done, state.todos_count);
 
     if (length > state.screen_cols) length = state.screen_cols;
 
