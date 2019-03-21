@@ -19,6 +19,7 @@
 #define ctrl_key(k) ((k) & 0x1f)
 
 enum keys {
+    TAB_KEY = 9,
     BACKSPACE = 127,
     ARROW_LEFT = 1000,
     ARROW_RIGHT,
@@ -29,7 +30,8 @@ enum keys {
     END_KEY,
     PAGE_UP,
     PAGE_DOWN,
-    ALT_ENTER
+    ALT_ENTER,
+    SHIFT_TAB
 };
 
 enum work_modes {
@@ -168,6 +170,7 @@ int read_key() {
                     case 'D': return ARROW_LEFT;
                     case 'H': return HOME_KEY;
                     case 'F': return END_KEY;
+                    case 'Z': return SHIFT_TAB;
                 }
             }
         } else if (seq[0] == 'O') {
@@ -198,10 +201,12 @@ void move_cursor(int key) {
                 state.cursor.x < current->size + TODO_OFFSET)
                 state.cursor.x++;
             break;
+        case SHIFT_TAB:
         case ARROW_UP:
             if (state.cursor.y != 0 && state.work_mode == WM_NORMAL)
                 state.cursor.y--;
             break;
+        case TAB_KEY:
         case ARROW_DOWN:
             if (state.cursor.y < state.todos_count - 1 &&
                 state.work_mode == WM_NORMAL)
@@ -350,6 +355,8 @@ void normal_keys(int c) {
         case ARROW_LEFT:
         case ARROW_RIGHT:
         case ARROW_UP:
+        case TAB_KEY:
+        case SHIFT_TAB:
             move_cursor(c);
             break;
     }
