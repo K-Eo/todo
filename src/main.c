@@ -240,10 +240,44 @@ void render(struct buffer *content) {
         }
 
         buffer_append(content, "\x1b[K", 3);
-        if (i < state.screenrows - 1) {
-            buffer_append(content, "\r\n", 2);
+        buffer_append(content, "\r\n", 2);
+    }
+}
+
+void get_stats(int *done, int *todo) {
+    int i;
+
+    for (i = 0; i < state.numtodos; i++) {
+        if (state.todo[i].done) {
+            (*done)++;
+        } else {
+            (*todo)++;
         }
     }
+}
+
+void render_status_bar(struct buffer *dest) {
+    buffer_append(dest, "\x1b[7m", 4);
+
+    int done = 0;
+    int todo = 0;
+
+    get_stats(&done, &todo);
+
+    char status[80];
+    int length = snprintf(status, sizeof(status), "%d %d %d",
+        todo, done, state.numtodos);
+
+    if (length > state.screencols) length = state.screencols;
+
+    buffer_append(dest, status, length);
+
+    while (length < state.screencols) {
+        buffer_append(dest, " ", 1);
+        length++;
+    }
+
+    buffer_append(dest, "\x1b[m", 3);
 }
 
 void refresh_screen() {
@@ -255,6 +289,7 @@ void refresh_screen() {
     buffer_append(&content, "\x1b[H", 3);
 
     render(&content);
+    render_status_bar(&content);
 
     char buffer[32];
     int y = (state.cy - state.rowoff) + 1;
@@ -316,6 +351,8 @@ void init() {
     if (getWindowSize(&state.screenrows, &state.screencols) == -1) {
         die("getWindowSize");
     }
+
+    state.screenrows -= 1;
 }
 
 int main(int argc, char *argv[]) {
