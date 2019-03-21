@@ -30,9 +30,9 @@ enum keys {
     PAGE_DOWN
 };
 
-enum modes {
-    M_NORMAL,
-    M_INSERT
+enum work_modes {
+    WM_NORMAL,
+    WM_INSERT
 };
 
 struct cursor_state {
@@ -46,7 +46,7 @@ struct config_state {
     int screen_rows;
     int screen_cols;
     int todos_count;
-    int mode;
+    int work_mode;
     char status_message[80];
     time_t status_message_time;
     todo *todos;
@@ -117,22 +117,22 @@ void move_cursor(int key) {
 
     switch (key) {
         case ARROW_LEFT:
-            if (state.cursor.x > TODO_OFFSET && state.mode == M_INSERT) {
+            if (state.cursor.x > TODO_OFFSET && state.work_mode == WM_INSERT) {
                 state.cursor.x--;
             }
             break;
         case ARROW_RIGHT:
-            if (current && state.mode == M_INSERT && state.cursor.x < current->size + TODO_OFFSET) {
+            if (current && state.work_mode == WM_INSERT && state.cursor.x < current->size + TODO_OFFSET) {
                 state.cursor.x++;
             }
             break;
         case ARROW_UP:
-            if (state.cursor.y != 0 && state.mode == M_NORMAL) {
+            if (state.cursor.y != 0 && state.work_mode == WM_NORMAL) {
                 state.cursor.y--;
             }
             break;
         case ARROW_DOWN:
-            if (state.cursor.y < state.todos_count - 1 && state.mode == M_NORMAL) {
+            if (state.cursor.y < state.todos_count - 1 && state.work_mode == WM_NORMAL) {
                 state.cursor.y++;
             }
             break;
@@ -140,11 +140,11 @@ void move_cursor(int key) {
 }
 
 void begin_insert_mode() {
-    state.mode = M_INSERT;
+    state.work_mode = WM_INSERT;
 }
 
 void end_insert_mode() {
-    state.mode = M_NORMAL;
+    state.work_mode = WM_NORMAL;
 }
 
 void todo_del_char(todo *src, int at) {
@@ -302,7 +302,7 @@ void insert_keys(int c) {
 void process_keys() {
     int c = read_key();
 
-    if (state.mode == M_NORMAL) {
+    if (state.work_mode == WM_NORMAL) {
         normal_keys(c);
     } else {
         insert_keys(c);
@@ -458,7 +458,7 @@ void refresh_screen() {
     snprintf(buffer, sizeof(buffer), "\x1b[%d;%dH", y, x);
     buffer_append(&content, buffer, strlen(buffer));
 
-    if (state.mode == M_INSERT) {
+    if (state.work_mode == WM_INSERT) {
         buffer_append(&content, "\x1b[?25h", 6);
     }
 
@@ -494,7 +494,7 @@ void init() {
     state.todos_count = 0;
     state.todos = NULL;
     state.row_offset = 0;
-    state.mode = M_NORMAL;
+    state.work_mode = WM_NORMAL;
     state.status_message[0] = '\0';
     state.status_message_time = 0;
 
