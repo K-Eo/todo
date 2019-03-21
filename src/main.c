@@ -99,6 +99,11 @@ void move_cursor(int key) {
     }
 }
 
+void toggle_todo() {
+    int *done = &state.todo[state.cy].done;
+    *done = *done == 0 ? 1 : 0;
+}
+
 void process_keys() {
     int c = read_key();
 
@@ -106,6 +111,12 @@ void process_keys() {
         case ctrl_key('q'):
             clear_screen();
             exit(0);
+            break;
+
+        case ' ':
+            if (state.mode == M_NORMAL) {
+                toggle_todo();
+            }
             break;
 
         case ARROW_DOWN:
@@ -124,6 +135,34 @@ void scrolling() {
 
     if (state.cy >= state.rowoff + state.screenrows) {
         state.rowoff = state.cy - state.screenrows + 1;
+    }
+}
+
+void renderTodo(struct buffer *content, struct Todo todo, int index) {
+    buffer_append(content, "   ", 3);
+
+    char pointer = index == state.cy ? '>' : ' ';
+    buffer_append(content, &pointer, 1);
+    buffer_append(content, " - ", 3);
+
+    int length = todo.size;
+
+    if (length + 7 > state.screencols)
+        length = state.screencols;
+
+    char *c = &todo.string[0];
+
+    int i;
+    for (i = 0; i < length; i++) {
+        if (isalpha(c[i]) && todo.done) {
+            buffer_append(content, "\x1b[9m", 5);
+            buffer_append(content, "\x1b[35m", 5);
+            buffer_append(content, &c[i], 1);
+            buffer_append(content, "\x1b[30m", 5);
+            buffer_append(content, "\x1b[0m", 5);
+        } else {
+            buffer_append(content, &c[i], 1);
+        }
     }
 }
 
@@ -154,12 +193,7 @@ void render(struct buffer *content) {
                 buffer_append(content, "~", 1);
             }
         } else {
-            int length = state.todo[filerow].size;
-
-            if (length > state.screencols)
-                length = state.screencols;
-
-            buffer_append(content, state.todo[filerow].string, length);
+            renderTodo(content, state.todo[filerow], filerow);
         }
 
         buffer_append(content, "\x1b[K", 3);
@@ -187,7 +221,7 @@ void refresh_screen() {
     buffer_append(&content, buffer, strlen(buffer));
 
     if (state.mode == M_INSERT) {
-    buffer_append(&content, "\x1b[?25h", 6);
+        buffer_append(&content, "\x1b[?25h", 6);
     }
 
     write(STDOUT_FILENO, content.string, content.length);
@@ -198,6 +232,7 @@ void push_todo(char *string, size_t length) {
     state.todo = realloc(state.todo, sizeof(Todo) * (state.numtodos + 1));
 
     int at = state.numtodos;
+    state.todo[at].done = 0;
     state.todo[at].size = length;
     state.todo[at].string = malloc(length + 1);
     memcpy(state.todo[at].string, string, length);
