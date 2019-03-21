@@ -79,7 +79,7 @@ char *todos_to_string(int *buffer_length) {
     int i;
 
     for (i = 0; i < state.todos_count; i++) {
-        total_length += state.todos[i].size + 1;
+        total_length += state.todos[i].size + 3;
     }
 
     *buffer_length = total_length;
@@ -88,6 +88,10 @@ char *todos_to_string(int *buffer_length) {
     char *p = buffer;
 
     for (i = 0; i < state.todos_count; i++) {
+        *p = state.todos[i].done ? '-' : ' ';
+        p++;
+        *p = ' ';
+        p++;
         memcpy(p, state.todos[i].string, state.todos[i].size);
         p += state.todos[i].size;
         *p = '\n';
@@ -253,13 +257,13 @@ void insert_char(int c) {
     state.cursor.x++;
 }
 
-void push_todo(int at, char *string, size_t length) {
+void push_todo(int at, char *string, size_t length, int done) {
     if (at < 0 || at > state.todos_count) return;
 
     state.todos = realloc(state.todos, sizeof(todo) * (state.todos_count + 1));
     memmove(&state.todos[at + 1], &state.todos[at], sizeof(todo) * (state.todos_count - at));
 
-    state.todos[at].done = 0;
+    state.todos[at].done = done;
     state.todos[at].size = length;
     state.todos[at].string = malloc(length + 1);
     memcpy(state.todos[at].string, string, length);
@@ -280,7 +284,7 @@ void create_todo() {
     int at = state.insertion_mode == IM_AFTER ?
         state.cursor.y + 1 : state.cursor.y;
 
-    push_todo(at, "", 0);
+    push_todo(at, "", 0, 0);
 
     if (state.insertion_mode == IM_AFTER) {
         state.cursor.y++;
@@ -328,6 +332,7 @@ void normal_keys(int c) {
 
         case ' ':
             toggle_todo();
+            when_save();
             break;
 
         case HOME_KEY:
@@ -606,7 +611,13 @@ void when_open(char *filename) {
                 line_length--;
             }
 
-        push_todo(state.todos_count, line, line_length);
+        if (line_length > 2 && line[1] == ' ' &&
+            (line[0] == ' ' || line[0] == '-')) {
+            int done = line[0] == '-' ? 1 : 0;
+            push_todo(state.todos_count, &line[2], line_length - 2, done);
+        } else {
+            continue;
+        }
     }
 
     free(line);
