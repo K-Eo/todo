@@ -4,7 +4,7 @@
 #include <termios.h>
 #include <unistd.h>
 
-void enableRawMode();
-void disableRawMode();
-int getWindowSize(int *rows, int *cols);
-int getCursorPosition(int *rows, int *cols);
+void enable_raw_mode();
+void disable_raw_mode();
+int get_window_size(int *rows, int *cols);
+int get_cursor_position(int *rows, int *cols);

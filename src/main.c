@@ -498,15 +498,15 @@ void init() {
     state.status_message[0] = '\0';
     state.status_message_time = 0;
 
-    if (getWindowSize(&state.screen_rows, &state.screen_cols) == -1) {
-        die("getWindowSize");
+    if (get_window_size(&state.screen_rows, &state.screen_cols) == -1) {
+        die("get_window_size");
     }
 
     state.screen_rows -= 2;
 }
 
 int main(int argc, char *argv[]) {
-    enableRawMode();
+    enable_raw_mode();
     on_die(clear_screen);
     init();
 

@@ -3,12 +3,12 @@
 
 struct termios original_termios;
 
-void enableRawMode() {
+void enable_raw_mode() {
     if (tcgetattr(STDIN_FILENO, &original_termios) == -1) {
         die("tcgetattr");
     }
 
-    atexit(disableRawMode);
+    atexit(disable_raw_mode);
 
     struct termios raw = original_termios;
 
@@ -24,19 +24,19 @@ void enableRawMode() {
     }
 }
 
-void disableRawMode() {
+void disable_raw_mode() {
     if (tcsetattr(STDIN_FILENO, TCSAFLUSH, &original_termios) == -1) {
         die("tcsetattr");
     }
 }
 
-int getWindowSize(int *rows, int *cols) {
+int get_window_size(int *rows, int *cols) {
     struct winsize ws;
 
     if (ioctl(STDOUT_FILENO, TIOCGWINSZ, &ws) == -1 || ws.ws_col == 0) {
         if (write(STDOUT_FILENO, "\x1b[999C\x1b[999B", 12) != 12)
             return -1;
-        return getCursorPosition(rows, cols);
+        return get_cursor_position(rows, cols);
     } else {
         *cols = ws.ws_col;
         *rows = ws.ws_row;
@@ -44,7 +44,7 @@ int getWindowSize(int *rows, int *cols) {
     }
 }
 
-int getCursorPosition(int *rows, int *cols) {
+int get_cursor_position(int *rows, int *cols) {
     char buffer[32];
     unsigned int i = 0;
 
