@@ -52,6 +52,8 @@ struct cursor_state {
 
 struct todos_stats {
     int count;
+    int done;
+    int todo;
 };
 
 struct config_state {
@@ -272,12 +274,27 @@ void push_todo(int at, char *string, size_t length, int done) {
     state.todos[at].string = malloc(length + 1);
     memcpy(state.todos[at].string, string, length);
     state.todos[at].string[length] = '\0';
+
     state.stats.count++;
+
+    if (done) {
+        state.stats.done++;
+    } else {
+        state.stats.todo++;
+    }
 }
 
 void toggle_todo() {
     int *done = &state.todos[state.cursor.y].done;
     *done = *done == 0 ? 1 : 0;
+
+    if (done) {
+        state.stats.done++;
+        state.stats.todo--;
+    } else {
+        state.stats.done--;
+        state.stats.todo++;
+    }
 }
 
 void free_todo(todo *src) {
@@ -299,10 +316,20 @@ void create_todo() {
 
 void remove_todo(int at) {
     if (at < 0 || at >= state.stats.count) return;
+
+    int done = state.todos[at].done;
+
     free_todo(&state.todos[at]);
     memmove(&state.todos[at], &state.todos[at + 1],
         sizeof(todo) * (state.stats.count - at - 1));
+
     state.stats.count--;
+
+    if (done) {
+        state.stats.done--;
+    } else {
+        state.stats.todo--;
+    }
 }
 
 void edit_todo() {
@@ -544,7 +571,7 @@ void render_status_bar(struct buffer *dest) {
 
     char status[80];
     int length = snprintf(status, sizeof(status), "%2d - %2d/%2d/%2d",
-        state.cursor.y + 1, todo, done, state.stats.count);
+        state.cursor.y + 1, state.stats.todo, state.stats.done, state.stats.count);
 
     if (length > state.screen_cols) length = state.screen_cols;
 
