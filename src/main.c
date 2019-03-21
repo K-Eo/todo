@@ -37,7 +37,7 @@ enum modes {
 
 struct config_state {
     int cx, cy;
-    int rowoff;
+    int row_offset;
     int screenrows;
     int screencols;
     int numtodos;
@@ -305,12 +305,12 @@ void process_keys() {
 }
 
 void scrolling() {
-    if (state.cy < state.rowoff) {
-        state.rowoff = state.cy;
+    if (state.cy < state.row_offset) {
+        state.row_offset = state.cy;
     }
 
-    if (state.cy >= state.rowoff + state.screenrows) {
-        state.rowoff = state.cy - state.screenrows + 1;
+    if (state.cy >= state.row_offset + state.screenrows) {
+        state.row_offset = state.cy - state.screenrows + 1;
     }
 }
 
@@ -344,7 +344,7 @@ void render_todo(struct buffer *content, struct todo src, int index) {
 
 void render(struct buffer *content) {
     for (int i = 0; i < state.screenrows; i++) {
-        int filerow = i + state.rowoff;
+        int filerow = i + state.row_offset;
 
         if (filerow >= state.numtodos) {
             if (state.numtodos == 0 && i == 0) {
@@ -447,7 +447,7 @@ void refresh_screen() {
     render_status_message(&content);
 
     char buffer[32];
-    int y = (state.cy - state.rowoff) + 1;
+    int y = (state.cy - state.row_offset) + 1;
     int x = state.cx + 1;
 
     snprintf(buffer, sizeof(buffer), "\x1b[%d;%dH", y, x);
@@ -488,7 +488,7 @@ void init() {
     state.cy = 0;
     state.numtodos = 0;
     state.todos = NULL;
-    state.rowoff = 0;
+    state.row_offset = 0;
     state.mode = M_NORMAL;
     state.status_message[0] = '\0';
     state.status_message_time = 0;
