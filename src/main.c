@@ -282,7 +282,10 @@ void create_todo() {
 
     push_todo(at, "", 0);
 
-    state.cursor.y++;
+    if (state.insertion_mode == IM_AFTER) {
+        state.cursor.y++;
+    }
+
     state.cursor.x = TODO_OFFSET;
 }
 
@@ -310,7 +313,6 @@ void normal_keys(int c) {
         case ALT_ENTER:
             state.insertion_mode = IM_BEFORE;
             create_todo();
-            move_cursor(ARROW_UP);
             begin_insert_mode();
             break;
 
@@ -376,9 +378,25 @@ void insert_keys(int c) {
                 when_save();
             }
             break;
+
+        case TAB_KEY:
+            if (state.todos[state.cursor.y].size != 0) {
+                state.insertion_mode = IM_AFTER;
+                create_todo();
+                begin_insert_mode();
+            }
+            break;
+
+        case SHIFT_TAB:
+            if (state.todos[state.cursor.y].size != 0) {
+                state.insertion_mode = IM_BEFORE;
+                create_todo();
+                begin_insert_mode();
+            }
+            break;
+
         case PAGE_DOWN:
         case PAGE_UP:
-        case '\t':
         case ctrl_key('l'):
         case ALT_ENTER:
             break;
