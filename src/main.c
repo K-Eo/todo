@@ -4,6 +4,7 @@
 
 #include <ctype.h>
 #include <errno.h>
+#include <fcntl.h>
 #include <stdio.h>
 #include <stdarg.h>
 #include <time.h>
@@ -58,9 +59,66 @@ struct config_state {
     char status_message[80];
     time_t status_message_time;
     todo *todos;
+    char *filename;
 };
 
 struct config_state state;
+
+void set_status_message(const char *fmt, ...) {
+    va_list ap;
+    va_start(ap, fmt);
+    vsnprintf(state.status_message, sizeof(state.status_message), fmt, ap);
+    va_end(ap);
+    state.status_message_time = time(NULL);
+}
+
+char *todos_to_string(int *buffer_length) {
+    int total_length = 0;
+    int i;
+
+    for (i = 0; i < state.todos_count; i++) {
+        total_length += state.todos[i].size + 1;
+    }
+
+    *buffer_length = total_length;
+
+    char *buffer = malloc(total_length);
+    char *p = buffer;
+
+    for (i = 0; i < state.todos_count; i++) {
+        memcpy(p, state.todos[i].string, state.todos[i].size);
+        p += state.todos[i].size;
+        *p = '\n';
+        p++;
+    }
+
+    return buffer;
+}
+
+void when_save() {
+    if (state.filename == NULL) return;
+
+    int length;
+    char *buffer = todos_to_string(&length);
+
+    int file = open(state.filename, O_RDWR | O_CREAT, 0644);
+
+    if (file != -1) {
+        if (ftruncate(file, length) != 1) {
+            if (write(file, buffer, length) == length) {
+                close(file);
+                free(buffer);
+                set_status_message("%d bytes written to disk", length);
+                return;
+            }
+        }
+
+        close(file);
+    }
+
+    free(buffer);
+    set_status_message("Can't save I/O error: %s", strerror(errno));
+}
 
 void clear_screen() {
     write(STDOUT_FILENO, "\x1b[2J", 4);
@@ -276,6 +334,7 @@ void normal_keys(int c) {
         case BACKSPACE:
             if (c == BACKSPACE) move_cursor(ARROW_UP);
             remove_todo(state.cursor.y);
+            when_save();
             break;
 
         case PAGE_DOWN:
@@ -306,6 +365,8 @@ void insert_keys(int c) {
                 if (state.insertion_mode == IM_AFTER) {
                     move_cursor(ARROW_UP);
                 }
+            } else {
+                when_save();
             }
             break;
         case PAGE_DOWN:
@@ -439,14 +500,6 @@ void get_stats(int *done, int *todo) {
     }
 }
 
-void set_status_message(const char *fmt, ...) {
-    va_list ap;
-    va_start(ap, fmt);
-    vsnprintf(state.status_message, sizeof(state.status_message), fmt, ap);
-    va_end(ap);
-    state.status_message_time = time(NULL);
-}
-
 void render_status_bar(struct buffer *dest) {
     buffer_append(dest, "\x1b[7m", 4);
 
@@ -512,6 +565,9 @@ void refresh_screen() {
 }
 
 void when_open(char *filename) {
+    free(state.filename);
+    state.filename = strdup(filename);
+
     FILE *file = fopen(filename, "r");
     if (!file) die("fopen");
 
