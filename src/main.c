@@ -38,7 +38,8 @@ enum work_modes {
 
 enum insertion_modes {
     IM_AFTER,
-    IM_BEFORE
+    IM_BEFORE,
+    IM_CURRENT
 };
 
 struct cursor_state {
@@ -230,6 +231,11 @@ void remove_todo(int at) {
     state.todos_count--;
 }
 
+void edit_todo() {
+    state.insertion_mode = IM_CURRENT;
+    state.cursor.x = state.todos[state.cursor.y].size + TODO_OFFSET;
+}
+
 void normal_keys(int c) {
     switch (c) {
         case '\r':
@@ -248,6 +254,11 @@ void normal_keys(int c) {
         case ctrl_key('q'):
             clear_screen();
             exit(0);
+            break;
+
+        case 'e':
+            edit_todo();
+            begin_insert_mode();
             break;
 
         case ' ':
