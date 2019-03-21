@@ -265,6 +265,10 @@ void insert_keys(int c) {
     switch (c) {
         case '\r':
             end_insert_mode();
+            if (state.todos[state.cursor.y].size == 0) {
+                remove_todo(state.cursor.y);
+                move_cursor(ARROW_UP);
+            }
             break;
         case PAGE_DOWN:
         case PAGE_UP:
