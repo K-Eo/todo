@@ -288,7 +288,7 @@ void toggle_todo() {
     int *done = &state.todos[state.cursor.y].done;
     *done = *done == 0 ? 1 : 0;
 
-    if (done) {
+    if (*done) {
         state.stats.done++;
         state.stats.todo--;
     } else {
