@@ -5,6 +5,8 @@
 #include <ctype.h>
 #include <errno.h>
 #include <stdio.h>
+#include <stdarg.h>
+#include <time.h>
 
 #include "terminal.h"
 #include "dirty.h"
@@ -38,6 +40,8 @@ struct Config {
     int screencols;
     int numtodos;
     int mode;
+    char status_message[80];
+    time_t status_message_time;
     Todo *todo;
 };
 
@@ -256,6 +260,14 @@ void get_stats(int *done, int *todo) {
     }
 }
 
+void set_status_message(const char *fmt, ...) {
+    va_list ap;
+    va_start(ap, fmt);
+    vsnprintf(state.status_message, sizeof(state.status_message), fmt, ap);
+    va_end(ap);
+    state.status_message_time = time(NULL);
+}
+
 void render_status_bar(struct buffer *dest) {
     buffer_append(dest, "\x1b[7m", 4);
 
@@ -278,6 +290,19 @@ void render_status_bar(struct buffer *dest) {
     }
 
     buffer_append(dest, "\x1b[m", 3);
+    buffer_append(dest, "\r\n", 2);
+}
+
+void render_status_message(struct buffer *dest) {
+    buffer_append(dest, "\x1b[K", 3);
+
+    int message_length = strlen(state.status_message);
+
+    if (message_length > state.screencols)
+        message_length = state.screencols;
+
+    if (message_length && time(NULL) - state.status_message_time < 5)
+        buffer_append(dest, state.status_message, message_length);
 }
 
 void refresh_screen() {
@@ -290,6 +315,7 @@ void refresh_screen() {
 
     render(&content);
     render_status_bar(&content);
+    render_status_message(&content);
 
     char buffer[32];
     int y = (state.cy - state.rowoff) + 1;
@@ -347,12 +373,14 @@ void init() {
     state.todo = NULL;
     state.rowoff = 0;
     state.mode = M_NORMAL;
+    state.status_message[0] = '\0';
+    state.status_message_time = 0;
 
     if (getWindowSize(&state.screenrows, &state.screencols) == -1) {
         die("getWindowSize");
     }
 
-    state.screenrows -= 1;
+    state.screenrows -= 2;
 }
 
 int main(int argc, char *argv[]) {
@@ -363,6 +391,8 @@ int main(int argc, char *argv[]) {
     if (argc >= 2) {
         when_open(argv[1]);
     }
+
+    set_status_message("OK");
 
     while (1) {
         refresh_screen();
