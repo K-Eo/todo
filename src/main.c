@@ -50,12 +50,16 @@ struct cursor_state {
     int y;
 };
 
+struct todos_stats {
+    int count;
+};
+
 struct config_state {
     struct cursor_state cursor;
+    struct todos_stats stats;
     int row_offset;
     int screen_rows;
     int screen_cols;
-    int todos_count;
     int work_mode;
     int insertion_mode;
     char status_message[80];
@@ -78,7 +82,7 @@ char *todos_to_string(int *buffer_length) {
     int total_length = 0;
     int i;
 
-    for (i = 0; i < state.todos_count; i++) {
+    for (i = 0; i < state.stats.count; i++) {
         total_length += state.todos[i].size + 3;
     }
 
@@ -87,7 +91,7 @@ char *todos_to_string(int *buffer_length) {
     char *buffer = malloc(total_length);
     char *p = buffer;
 
-    for (i = 0; i < state.todos_count; i++) {
+    for (i = 0; i < state.stats.count; i++) {
         *p = state.todos[i].done ? '-' : ' ';
         p++;
         *p = ' ';
@@ -191,7 +195,7 @@ int read_key() {
 }
 
 void move_cursor(int key) {
-    todo *current = (state.cursor.y >= state.todos_count) ?
+    todo *current = (state.cursor.y >= state.stats.count) ?
                     NULL : &state.todos[state.cursor.y];
 
     switch (key) {
@@ -212,7 +216,7 @@ void move_cursor(int key) {
             break;
         case TAB_KEY:
         case ARROW_DOWN:
-            if (state.cursor.y < state.todos_count - 1 &&
+            if (state.cursor.y < state.stats.count - 1 &&
                 state.work_mode == WM_NORMAL)
                 state.cursor.y++;
             break;
@@ -234,7 +238,7 @@ void todo_del_char(todo *src, int at) {
 }
 
 void del_char() {
-    if (state.cursor.y == state.todos_count) return;
+    if (state.cursor.y == state.stats.count) return;
 
     todo *current = &state.todos[state.cursor.y];
 
@@ -258,17 +262,17 @@ void insert_char(int c) {
 }
 
 void push_todo(int at, char *string, size_t length, int done) {
-    if (at < 0 || at > state.todos_count) return;
+    if (at < 0 || at > state.stats.count) return;
 
-    state.todos = realloc(state.todos, sizeof(todo) * (state.todos_count + 1));
-    memmove(&state.todos[at + 1], &state.todos[at], sizeof(todo) * (state.todos_count - at));
+    state.todos = realloc(state.todos, sizeof(todo) * (state.stats.count + 1));
+    memmove(&state.todos[at + 1], &state.todos[at], sizeof(todo) * (state.stats.count - at));
 
     state.todos[at].done = done;
     state.todos[at].size = length;
     state.todos[at].string = malloc(length + 1);
     memcpy(state.todos[at].string, string, length);
     state.todos[at].string[length] = '\0';
-    state.todos_count++;
+    state.stats.count++;
 }
 
 void toggle_todo() {
@@ -294,11 +298,11 @@ void create_todo() {
 }
 
 void remove_todo(int at) {
-    if (at < 0 || at >= state.todos_count) return;
+    if (at < 0 || at >= state.stats.count) return;
     free_todo(&state.todos[at]);
     memmove(&state.todos[at], &state.todos[at + 1],
-        sizeof(todo) * (state.todos_count - at - 1));
-    state.todos_count--;
+        sizeof(todo) * (state.stats.count - at - 1));
+    state.stats.count--;
 }
 
 void edit_todo() {
@@ -339,7 +343,7 @@ void normal_keys(int c) {
             state.cursor.y = 0;
             break;
         case END_KEY:
-            state.cursor.y = state.todos_count - 1;
+            state.cursor.y = state.stats.count - 1;
             break;
 
         case DEL_KEY:
@@ -410,7 +414,7 @@ void insert_keys(int c) {
             state.cursor.x = TODO_OFFSET;
             break;
         case END_KEY:
-            if (state.cursor.y < state.todos_count) {
+            if (state.cursor.y < state.stats.count) {
                 state.cursor.x = state.todos[state.cursor.y].size + TODO_OFFSET;
             }
             break;
@@ -487,8 +491,8 @@ void render(struct buffer *content) {
     for (int i = 0; i < state.screen_rows; i++) {
         int filerow = i + state.row_offset;
 
-        if (filerow >= state.todos_count) {
-            if (state.todos_count == 0 && i == 0) {
+        if (filerow >= state.stats.count) {
+            if (state.stats.count == 0 && i == 0) {
                 char welcome[80];
                 int welcome_length = snprintf(welcome, sizeof(welcome),
                     "Todo App -- version %s", TODO_VERSION);
@@ -521,7 +525,7 @@ void render(struct buffer *content) {
 void get_stats(int *done, int *todo) {
     int i;
 
-    for (i = 0; i < state.todos_count; i++) {
+    for (i = 0; i < state.stats.count; i++) {
         if (state.todos[i].done) {
             (*done)++;
         } else {
@@ -540,7 +544,7 @@ void render_status_bar(struct buffer *dest) {
 
     char status[80];
     int length = snprintf(status, sizeof(status), "%2d - %2d/%2d/%2d",
-        state.cursor.y + 1, todo, done, state.todos_count);
+        state.cursor.y + 1, todo, done, state.stats.count);
 
     if (length > state.screen_cols) length = state.screen_cols;
 
@@ -614,7 +618,7 @@ void when_open(char *filename) {
         if (line_length > 2 && line[1] == ' ' &&
             (line[0] == ' ' || line[0] == '-')) {
             int done = line[0] == '-' ? 1 : 0;
-            push_todo(state.todos_count, &line[2], line_length - 2, done);
+            push_todo(state.stats.count, &line[2], line_length - 2, done);
         } else {
             continue;
         }
@@ -628,7 +632,7 @@ void when_open(char *filename) {
 void init() {
     state.cursor.x = 3;
     state.cursor.y = 0;
-    state.todos_count = 0;
+    state.stats.count = 0;
     state.todos = NULL;
     state.row_offset = 0;
     state.work_mode = WM_NORMAL;
