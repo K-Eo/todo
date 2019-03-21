@@ -44,7 +44,7 @@ struct Config {
     int mode;
     char status_message[80];
     time_t status_message_time;
-    Todo *todo;
+    todo *todos;
 };
 
 struct Config state;
@@ -108,7 +108,7 @@ int read_key() {
 }
 
 void move_cursor(int key) {
-    Todo *todo = (state.cy >= state.numtodos) ? NULL : &state.todo[state.cy];
+    todo *current = (state.cy >= state.numtodos) ? NULL : &state.todos[state.cy];
 
     switch (key) {
         case ARROW_LEFT:
@@ -117,7 +117,7 @@ void move_cursor(int key) {
             }
             break;
         case ARROW_RIGHT:
-            if (todo && state.mode == M_INSERT && state.cx < todo->size + TODO_OFFSET) {
+            if (current && state.mode == M_INSERT && state.cx < current->size + TODO_OFFSET) {
                 state.cx++;
             }
             break;
@@ -142,57 +142,57 @@ void end_insert_mode() {
     state.mode = M_NORMAL;
 }
 
-void todo_del_char(Todo *todo, int at) {
-    if (at < 0 || at >= todo->size) return;
-    memmove(&todo->string[at], &todo->string[at + 1], todo->size - at);
-    todo->size--;
+void todo_del_char(todo *src, int at) {
+    if (at < 0 || at >= src->size) return;
+    memmove(&src->string[at], &src->string[at + 1], src->size - at);
+    src->size--;
 }
 
 void del_char() {
     if (state.cy == state.numtodos) return;
 
-    Todo *todo = &state.todo[state.cy];
+    todo *current = &state.todos[state.cy];
 
     if (state.cx > TODO_OFFSET) {
-        todo_del_char(todo, state.cx - TODO_OFFSET - 1);
+        todo_del_char(current, state.cx - TODO_OFFSET - 1);
         state.cx--;
     }
 }
 
-void todo_insert_char(Todo *todo, int at, int c) {
-    if (at < 0 || at > todo->size) at = todo->size;
-    todo->string = realloc(todo->string, todo->size + 2);
-    memmove(&todo->string[at + 1], &todo->string[at], todo->size - at + 1);
-    todo->size++;
-    todo->string[at] = c;
+void todo_insert_char(todo *dest, int at, int c) {
+    if (at < 0 || at > dest->size) at = dest->size;
+    dest->string = realloc(dest->string, dest->size + 2);
+    memmove(&dest->string[at + 1], &dest->string[at], dest->size - at + 1);
+    dest->size++;
+    dest->string[at] = c;
 }
 
 void insert_char(int c) {
-    todo_insert_char(&state.todo[state.cy], state.cx - TODO_OFFSET, c);
+    todo_insert_char(&state.todos[state.cy], state.cx - TODO_OFFSET, c);
     state.cx++;
 }
 
 void push_todo(int at, char *string, size_t length) {
     if (at < 0 || at > state.numtodos) return;
 
-    state.todo = realloc(state.todo, sizeof(Todo) * (state.numtodos + 1));
-    memmove(&state.todo[at + 1], &state.todo[at], sizeof(Todo) * (state.numtodos - at));
+    state.todos = realloc(state.todos, sizeof(todo) * (state.numtodos + 1));
+    memmove(&state.todos[at + 1], &state.todos[at], sizeof(todo) * (state.numtodos - at));
 
-    state.todo[at].done = 0;
-    state.todo[at].size = length;
-    state.todo[at].string = malloc(length + 1);
-    memcpy(state.todo[at].string, string, length);
-    state.todo[at].string[length] = '\0';
+    state.todos[at].done = 0;
+    state.todos[at].size = length;
+    state.todos[at].string = malloc(length + 1);
+    memcpy(state.todos[at].string, string, length);
+    state.todos[at].string[length] = '\0';
     state.numtodos++;
 }
 
 void toggle_todo() {
-    int *done = &state.todo[state.cy].done;
+    int *done = &state.todos[state.cy].done;
     *done = *done == 0 ? 1 : 0;
 }
 
-void free_todo(Todo *todo) {
-    free(todo->string);
+void free_todo(todo *src) {
+    free(src->string);
 }
 
 void create_todo() {
@@ -203,9 +203,9 @@ void create_todo() {
 
 void remove_todo(int at) {
     if (at < 0 || at >= state.numtodos) return;
-    free_todo(&state.todo[at]);
-    memmove(&state.todo[at], &state.todo[at + 1],
-        sizeof(Todo) * (state.numtodos - at - 1));
+    free_todo(&state.todos[at]);
+    memmove(&state.todos[at], &state.todos[at + 1],
+        sizeof(todo) * (state.numtodos - at - 1));
     state.numtodos--;
 }
 
@@ -272,7 +272,7 @@ void insert_keys(int c) {
             break;
         case END_KEY:
             if (state.cy < state.numtodos) {
-                state.cx = state.todo[state.cy].size + TODO_OFFSET;
+                state.cx = state.todos[state.cy].size + TODO_OFFSET;
             }
             break;
 
@@ -314,23 +314,23 @@ void scrolling() {
     }
 }
 
-void render_todo(struct buffer *content, struct Todo todo, int index) {
+void render_todo(struct buffer *content, struct todo src, int index) {
     buffer_append(content, "  ", 2);
 
     char pointer = index == state.cy ? '>' : ' ';
     buffer_append(content, &pointer, 1);
     buffer_append(content, " - ", 3);
 
-    int length = todo.size;
+    int length = src.size;
 
     if (length + TODO_OFFSET > state.screencols)
         length = state.screencols;
 
-    char *c = &todo.string[0];
+    char *c = &src.string[0];
 
     int i;
     for (i = 0; i < length; i++) {
-        if (isalpha(c[i]) && todo.done) {
+        if (isalpha(c[i]) && src.done) {
             buffer_append(content, "\x1b[9m", 5);
             buffer_append(content, "\x1b[35m", 5);
             buffer_append(content, &c[i], 1);
@@ -369,7 +369,7 @@ void render(struct buffer *content) {
                 buffer_append(content, "~", 1);
             }
         } else {
-            render_todo(content, state.todo[filerow], filerow);
+            render_todo(content, state.todos[filerow], filerow);
         }
 
         buffer_append(content, "\x1b[K", 3);
@@ -381,7 +381,7 @@ void get_stats(int *done, int *todo) {
     int i;
 
     for (i = 0; i < state.numtodos; i++) {
-        if (state.todo[i].done) {
+        if (state.todos[i].done) {
             (*done)++;
         } else {
             (*todo)++;
@@ -487,7 +487,7 @@ void init() {
     state.cx = 3;
     state.cy = 0;
     state.numtodos = 0;
-    state.todo = NULL;
+    state.todos = NULL;
     state.rowoff = 0;
     state.mode = M_NORMAL;
     state.status_message[0] = '\0';

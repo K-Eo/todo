@@ -1,6 +1,6 @@
-typedef struct Todo {
+typedef struct todo {
     int size;
     char *string;
     int done;
-} Todo;
+} todo;
 
