@@ -298,6 +298,7 @@ void normal_keys(int c) {
 
 void insert_keys(int c) {
     switch (c) {
+        case '\x1b':
         case '\r':
             end_insert_mode();
             if (state.todos[state.cursor.y].size == 0) {
@@ -310,7 +311,6 @@ void insert_keys(int c) {
         case PAGE_DOWN:
         case PAGE_UP:
         case '\t':
-        case '\x1b':
         case ctrl_key('l'):
         case ALT_ENTER:
             break;
