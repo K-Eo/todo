@@ -491,7 +491,9 @@ void render_todo(struct buffer *content, struct todo src, int index) {
                     state.work_mode == WM_NORMAL ? '>' : '*';
 
     buffer_append(content, &pointer, 1);
-    buffer_append(content, " - ", 3);
+    buffer_append(content, " ", 1);
+    buffer_append(content, src.done ? " " : "-", 1);
+    buffer_append(content, " ", 1);
 
     int length = src.size;
 
