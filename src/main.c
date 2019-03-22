@@ -305,10 +305,16 @@ void create_todo() {
     int at = state.insertion_mode == IM_AFTER ?
         state.cursor.y + 1 : state.cursor.y;
 
+    if (at > state.stats.count) {
+        at = state.stats.count;
+    }
+
     push_todo(at, "", 0, 0);
 
     if (state.insertion_mode == IM_AFTER) {
-        state.cursor.y++;
+        if (state.stats.count > state.cursor.y + 1) {
+            state.cursor.y++;
+        }
     }
 
     state.cursor.x = TODO_OFFSET;
@@ -631,7 +637,7 @@ void when_open(char *filename) {
     free(state.filename);
     state.filename = strdup(filename);
 
-    FILE *file = fopen(filename, "r");
+    FILE *file = fopen(filename, "a+");
     if (!file) die("fopen");
 
     char *line = NULL;
@@ -676,6 +682,28 @@ void init() {
     state.screen_rows -= 2;
 }
 
+char *get_default_filename() {
+    char *home_dir = getenv("HOME");
+
+    if (home_dir) {
+        char *default_filename = "/.todos.txt";
+
+        int home_dir_length = strlen(home_dir);
+        int default_filename_length = strlen(default_filename);
+        int length = home_dir_length + default_filename_length + 1;
+
+        char *filename = malloc(length);
+
+        strcpy(filename, home_dir);
+        strcpy(&filename[home_dir_length], default_filename);
+        filename[length] = '\0';
+
+        return filename;
+    } else {
+        return NULL;
+    }
+}
+
 int main(int argc, char *argv[]) {
     enable_raw_mode();
     on_die(clear_screen);
@@ -683,6 +711,13 @@ int main(int argc, char *argv[]) {
 
     if (argc >= 2) {
         when_open(argv[1]);
+    } else {
+        char *filename = get_default_filename();
+
+        if (filename) {
+            when_open(filename);
+            free(filename);
+        }
     }
 
     set_status_message("OK");
